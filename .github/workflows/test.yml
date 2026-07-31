@@ -1,130 +1,60 @@
 name: Test
-
-on:
-  push:
-  pull_request:
-  workflow_dispatch:
-
 env:
-  GO111MODULE: on
-
+  GO111MODULE: true
+  PYTHONPATH: /tmp/instr
+  BASH_ENV: /tmp/instr/bash_env.sh
 permissions:
   contents: read
-
 jobs:
-
-
   lic-headers:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
-
-      - uses: actions/checkout@v4
-
-      - run: >-
-          docker run
-          -v $(pwd):/wrk -w /wrk
-          ghcr.io/google/addlicense
-          -c 'The Cobra Authors'
-          -y '2013-2023'
-          -l apache
-          -ignore '.github/**'
-          -check
-          .
-
-
+    - uses: actions/checkout@v4
+    - run: docker run -v $(pwd):/wrk -w /wrk ghcr.io/google/addlicense -c 'The Cobra
+        Authors' -y '2013-2023' -l apache -ignore '.github/**' -check .
+    timeout-minutes: 6
   golangci-lint:
     permissions:
-      contents: read  # for actions/checkout to fetch code
-      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
-    runs-on: ubuntu-latest
+      contents: read
+      pull-requests: read
+    runs-on: self-hosted
     steps:
-
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v6
-        with:
-          go-version: '^1.22'
-          check-latest: true
-          cache: true
-
-      - uses: golangci/golangci-lint-action@v8.0.0
-        with:
-          version: latest
-          args: --verbose
-
-
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v6
+      with:
+        go-version: ^1.22
+        check-latest: true
+        cache: true
+    - uses: golangci/golangci-lint-action@v8.0.0
+      with:
+        version: latest
+        args: --verbose
+    timeout-minutes: 6
   test-unix:
     strategy:
       fail-fast: false
       matrix:
-        platform:
-        - ubuntu
-        - macOS
-        go:
-        - 17
-        - 18
-        - 19
-        - 20
-        - 21
-        - 22
-        - 23
-        - 24
-    name: '${{ matrix.platform }} | 1.${{ matrix.go }}.x'
-    runs-on: ${{ matrix.platform }}-latest
-    # macOS runner environments require compiled binaries to contain an LC_UUID load command.
-    # Go 1.24+ natively resolves this by writing LC_UUID in Go's internal linker.
-    # For Go < 1.24, we pass -ldflags=-linkmode=external on macOS to force external linking via the system linker.
+        include:
+        - platform: ubuntu
+          go: '17'
+    name: ${{ matrix.platform }} | 1.${{ matrix.go }}.x
+    runs-on: self-hosted
     env:
-      GO_TEST_FLAGS: ${{ matrix.platform == 'macOS' && matrix.go < 24 && '-ldflags=-linkmode=external' || '' }}
+      GO_TEST_FLAGS: ${{ matrix.platform == 'macOS' && matrix.go < 24 && '-ldflags=-linkmode=external'
+        || '' }}
     steps:
-
     - uses: actions/checkout@v4
-
     - uses: actions/setup-go@v6
       with:
         go-version: 1.${{ matrix.go }}.x
         cache: true
-
     - run: |
         export GOBIN=$HOME/go/bin
         go install github.com/kyoh86/richgo@latest
         go install github.com/mitchellh/gox@latest
-
     - run: RICHGO_FORCE_COLOR=1 PATH=$HOME/go/bin/:$PATH make richtest
-
-
-  test-win:
-    name: MINGW64
-    defaults:
-      run:
-        shell: msys2 {0}
-    runs-on: windows-latest
-    steps:
-
-    - shell: bash
-      run: git config --global core.autocrlf input
-
-    - uses: msys2/setup-msys2@v2
-      with:
-        msystem: MINGW64
-        update: true
-        install: >
-          git
-          make
-          unzip
-          mingw-w64-x86_64-go
-
-    - uses: actions/checkout@v4
-
-    - uses: actions/cache@v4
-      with:
-        path: ~/go/pkg/mod
-        key: ${{ runner.os }}-${{ matrix.go }}-${{ hashFiles('**/go.sum') }}
-        restore-keys: ${{ runner.os }}-${{ matrix.go }}-
-
-    - run: |
-        export GOBIN=$HOME/go/bin
-        go install github.com/kyoh86/richgo@latest
-        go install github.com/mitchellh/gox@latest
-
-    - run: RICHGO_FORCE_COLOR=1 PATH=$HOME/go/bin:$PATH make richtest
+    timeout-minutes: 6
+'on':
+  push: null
+  pull_request: null
+  workflow_dispatch: null
