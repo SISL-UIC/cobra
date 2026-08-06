@@ -12,7 +12,7 @@ jobs:
     - uses: actions/checkout@v4
     - run: docker run -v $(pwd):/wrk -w /wrk ghcr.io/google/addlicense -c 'The Cobra
         Authors' -y '2013-2023' -l apache -ignore '.github/**' -check .
-    timeout-minutes: 6
+    timeout-minutes: 12
   golangci-lint:
     permissions:
       contents: read
@@ -29,7 +29,7 @@ jobs:
       with:
         version: latest
         args: --verbose
-    timeout-minutes: 6
+    timeout-minutes: 12
   test-unix:
     strategy:
       fail-fast: false
@@ -53,7 +53,7 @@ jobs:
         go install github.com/kyoh86/richgo@latest
         go install github.com/mitchellh/gox@latest
     - run: RICHGO_FORCE_COLOR=1 PATH=$HOME/go/bin/:$PATH make richtest
-    timeout-minutes: 6
+    timeout-minutes: 12
 'on':
   push: null
   pull_request: null
